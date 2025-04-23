@@ -1,0 +1,13 @@
+streamlit
+pandas
+textstat
+wordcloud
+matplotlib
+transformers
+docx
+PyPDF2
+requests
+google-generativeai
+nltk
+python-dotenv
+torch  
