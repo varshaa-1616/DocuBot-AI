@@ -83,3 +83,5 @@
 - Exploring common terms via frequency tables and word clouds  
 - Quick chatbot queries within the sidebar
 
+---
+🌟 Credits Developed by Srivarsha Chivukula and Madhuri Gottumukkala. Powered by Streamlit, HuggingFace, Gemini Pro, and open-source
