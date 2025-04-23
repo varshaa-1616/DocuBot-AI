@@ -11,38 +11,32 @@ import requests
 import google.generativeai as genai
 import os
 import string
-
-from dotenv import load_dotenv
-load_dotenv()
-
 import nltk
 from nltk.corpus import stopwords
-import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 nltk_data_dir = "/home/appuser/nltk_data"
 nltk.data.path.append(nltk_data_dir)
-
 if not os.path.exists(os.path.join(nltk_data_dir, "corpora/stopwords")):
     nltk.download("stopwords", download_dir=nltk_data_dir)
-
 
 os.environ["STREAMLIT_WATCHER_TYPE"] = "none"
 
 # ----------------- INITIAL SESSION STATE -----------------
-if "show_chat" not in st.session_state:
-    st.session_state.show_chat = False
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "chat_input" not in st.session_state:
-    st.session_state.chat_input = ""
-if "text" not in st.session_state:
-    st.session_state.text = None
-if "final_summary" not in st.session_state:
-    st.session_state.final_summary = None
-if "hide_msg" not in st.session_state:
-    st.session_state.hide_msg = False
-if "last_uploaded" not in st.session_state:
-    st.session_state.last_uploaded = None
+for key, default in {
+    "show_chat": False,
+    "chat_history": [],
+    "chat_input": "",
+    "text": None,
+    "final_summary": None,
+    "hide_msg": False,
+    "last_uploaded": None,
+    "chat_file_history": []
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 # ----------------- GEMINI CONFIG -----------------
 api_key = os.getenv("API_KEY")
@@ -78,15 +72,13 @@ if query:
 if st.sidebar.button("💬 Any more queries?"):
     st.session_state.show_chat = not st.session_state.show_chat
 
-# ----------------- MAIN CHATBOT (Regular) -----------------
 if st.session_state.show_chat:
     st.sidebar.markdown("### 🤖 Chat Assistant")
     for user, bot in st.session_state.chat_history:
         st.sidebar.markdown(f"**You:** {user}")
         st.sidebar.markdown(f"**Bot:** {bot}")
     st.session_state.chat_input = st.sidebar.text_input("Your message", value=st.session_state.chat_input)
-    send_clicked = st.sidebar.button("Send")
-    if send_clicked:
+    if st.sidebar.button("Send"):
         user_input = st.session_state.chat_input.strip()
         if user_input:
             try:
@@ -96,7 +88,6 @@ if st.session_state.show_chat:
                 reply = f"⚠️ Error: {str(e)}"
             st.session_state.chat_history.append((user_input, reply))
             st.session_state.chat_input = ""
-
 
 # ----------------- NLP HELPERS -----------------
 @st.cache_resource
@@ -111,23 +102,13 @@ def extract_text_from_docx(file):
 
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
-    text = ''
-    for page in reader.pages:
-        text += page.extract_text() or ''
-    return text
+    return ''.join([page.extract_text() or '' for page in reader.pages])
 
-def chunk_text(text, max_words=700):  # Increased chunk size
+def chunk_text(text, max_words=700):
     words = text.split()
     return [" ".join(words[i:i+max_words]) for i in range(0, len(words), max_words)]
 
-# ----------------- CLEANING FUNCTION -----------------
 def clean_and_tokenize(text):
-    translator = str.maketrans('', '', string.punctuation)
-    words = text.lower().translate(translator).split()
-    stop_words = set(stopwords.words("english"))
-    return [word for word in words if word not in stop_words and word.isalpha()]
-
-def clean_and_tokenize_without_stopwords(text):
     translator = str.maketrans('', '', string.punctuation)
     words = text.lower().translate(translator).split()
     stop_words = set(stopwords.words("english"))
@@ -149,7 +130,6 @@ if uploaded_file:
             st.error("Unsupported file format.")
             st.stop()
 
-        # Reset session states
         st.session_state.text = text
         st.session_state.final_summary = None
         st.session_state.hide_msg = False
@@ -157,22 +137,18 @@ if uploaded_file:
     else:
         text = st.session_state.text
 
-    # Text Stats (keep stopwords in text analysis)
     word_count = len(text.split())
     sentence_count = text.count('.') + text.count('!') + text.count('?')
     paragraph_count = sum(1 for para in text.split('\n') if para.strip() != '')
     character_count = len(text)
     readability_score = flesch_kincaid_grade(text)
-    
-    # Tokenize and remove stopwords for word cloud and most common words
-    cleaned_words = clean_and_tokenize_without_stopwords(text)
+
+    cleaned_words = clean_and_tokenize(text)
     common_words = Counter(cleaned_words).most_common(10)
 
     if st.button("Summarize Text"):
         try:
             with st.spinner("Summarizing... Please wait."):
-
-                # Increase chunk size to around 700 words per chunk
                 chunks = chunk_text(text, max_words=700)
                 summaries = []
                 total_word_count = 0
@@ -183,7 +159,6 @@ if uploaded_file:
                     summaries.append(summary)
 
                 final_summary = " ".join(summaries)
-                # Ensure summary length is closer to 1300 words
                 if total_word_count < 1300:
                     final_summary += " " + summarizer(chunks[-1], max_length=300, min_length=100, do_sample=False)[0]['summary_text']
 
@@ -223,14 +198,11 @@ if uploaded_file:
     csv = df_stats.to_csv(index=False).encode('utf-8')
     st.download_button("Download Text Stats as CSV", csv, "text_stats.csv", "text/csv")
 
-# ------------------------- 
+# -------------------------
 # 📄 Chatbot (File-Aware)
 # -------------------------
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📄 Ask based on uploaded file")
-
-if "chat_file_history" not in st.session_state:
-    st.session_state.chat_file_history = []
 
 user_file_question = st.sidebar.text_input("Ask about the file...", key="file_chat_input")
 
@@ -238,7 +210,7 @@ if st.sidebar.button("Ask (File Context)"):
     if not st.session_state.text:
         st.sidebar.warning("Please upload a file first!")
     elif user_file_question:
-        file_context = st.session_state.text[::]  # Trim if needed
+        file_context = st.session_state.text[::]
         full_prompt = (
             "Use the following document content to answer the user's question:\n\n"
             f"---\n{file_context}\n---\n\n"
