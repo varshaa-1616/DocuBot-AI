@@ -11,11 +11,20 @@ import requests
 import google.generativeai as genai
 import os
 import string
-import nltk
-from nltk.corpus import stopwords
-nltk.download('stopwords')
+
 from dotenv import load_dotenv
 load_dotenv()
+
+import nltk
+from nltk.corpus import stopwords
+import os
+
+nltk_data_dir = "/home/appuser/nltk_data"
+nltk.data.path.append(nltk_data_dir)
+
+if not os.path.exists(os.path.join(nltk_data_dir, "corpora/stopwords")):
+    nltk.download("stopwords", download_dir=nltk_data_dir)
+
 
 os.environ["STREAMLIT_WATCHER_TYPE"] = "none"
 
