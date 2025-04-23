@@ -14,6 +14,8 @@ import string
 import nltk
 from nltk.corpus import stopwords
 nltk.download('stopwords')
+from dotenv import load_dotenv
+load_dotenv()
 
 os.environ["STREAMLIT_WATCHER_TYPE"] = "none"
 
@@ -34,7 +36,8 @@ if "last_uploaded" not in st.session_state:
     st.session_state.last_uploaded = None
 
 # ----------------- GEMINI CONFIG -----------------
-
+api_key = os.getenv("API_KEY")
+genai.configure(api_key=api_key)
 model = genai.GenerativeModel("models/gemini-1.5-pro")
 
 # ----------------- LEGAL TERM EXPLAINER -----------------
