@@ -4,7 +4,7 @@ textstat
 wordcloud
 matplotlib
 transformers
-docx
+python-docx
 PyPDF2
 requests
 google-generativeai
